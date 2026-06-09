@@ -1,0 +1,29 @@
+{
+  "defaultProvider": "openai",
+  "defaultDetail": "auto",
+  "defaultLanguage": "auto",
+  "providers": {
+    "openai": {
+      "type": "openai-chat",
+      "model": "gpt-4.1-mini",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiKeyEnv": "OPENAI_API_KEY"
+    },
+    "openai-responses": {
+      "type": "openai-responses",
+      "model": "gpt-4.1-mini",
+      "baseUrl": "https://api.openai.com/v1",
+      "apiKeyEnv": "OPENAI_API_KEY"
+    },
+    "anthropic": {
+      "type": "anthropic",
+      "model": "claude-sonnet-4-20250514",
+      "apiKeyEnv": "ANTHROPIC_API_KEY"
+    },
+    "plain-key-example": {
+      "type": "openai-chat",
+      "model": "gpt-4.1-mini",
+      "apiKey": "replace-with-api-key"
+    }
+  }
+}

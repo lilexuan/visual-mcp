@@ -1,0 +1,12 @@
+node_modules/
+dist/
+coverage/
+.superpowers/
+.codex/
+*.tgz
+opencode.json
+sunset.jpg
+visual-mcp.config.json
+.env
+.env.*
+!.env.example
