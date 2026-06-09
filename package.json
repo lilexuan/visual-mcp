@@ -1,7 +1,7 @@
 {
   "name": "visual-mcp",
-  "version": "1.0.0",
-  "description": "A local MCP server that gives text-only models image understanding through configurable vision providers.",
+  "version": "1.0.1",
+  "description": "A local MCP server that gives text-only models image understanding through one environment-configured vision provider.",
   "bin": {
     "visual-mcp": "./dist/cli.js"
   },
@@ -12,7 +12,7 @@
     "README.md",
     "README.zh-CN.md",
     "LICENSE",
-    "visual-mcp.config.example.json"
+    ".env.example"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

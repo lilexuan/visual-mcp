@@ -6,7 +6,6 @@ import type { DetailLevel, VisualMcpConfig, VisionAnalysis } from "./types.js";
 export interface AnalyzeImageArgs {
   path: string;
   question: string;
-  provider?: string;
   model?: string;
   detail?: DetailLevel;
   language?: string;
@@ -37,12 +36,8 @@ function formatAnalysis(analysis: VisionAnalysis): string {
 
 export async function analyzeImageTool(args: AnalyzeImageArgs, dependencies: ToolDependencies): Promise<ToolResult> {
   try {
-    const providerName = args.provider ?? dependencies.config.defaultProvider;
-    const baseProvider = dependencies.config.providers[providerName];
-    if (!baseProvider) {
-      throw new Error(`Provider "${providerName}" is not configured.`);
-    }
-
+    const providerName = dependencies.config.providerName;
+    const baseProvider = dependencies.config.provider;
     const provider = args.model ? { ...baseProvider, model: args.model } : baseProvider;
     const detail = args.detail ?? dependencies.config.defaultDetail ?? "auto";
     const language = args.language ?? dependencies.config.defaultLanguage ?? "auto";

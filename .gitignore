@@ -5,7 +5,6 @@ coverage/
 .codex/
 *.tgz
 opencode.json
-sunset.jpg
 visual-mcp.config.json
 .env
 .env.*

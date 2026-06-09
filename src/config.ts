@@ -1,87 +1,82 @@
-import { access, readFile } from "node:fs/promises";
-import { homedir } from "node:os";
-import { join } from "node:path";
-import type { ProviderConfig, VisualMcpConfig } from "./types.js";
+import type { DetailLevel, ProviderConfig, ProviderType, VisualMcpConfig } from "./types.js";
 
-const GLOBAL_CONFIG_RELATIVE_PATH = join(".visual-mcp", "config.json");
-const PROJECT_CONFIG_FILE = "visual-mcp.config.json";
+const providerTypes = ["openai-chat", "openai-responses", "anthropic"] as const satisfies readonly ProviderType[];
+const detailLevels = ["low", "high", "auto"] as const satisfies readonly DetailLevel[];
 
 export interface LoadConfigOptions {
-  cwd?: string;
-  homeDir?: string;
+  env?: NodeJS.ProcessEnv;
 }
 
-const defaultConfig: VisualMcpConfig = {
-  defaultProvider: "openai",
-  defaultDetail: "auto",
-  defaultLanguage: "auto",
-  providers: {}
-};
-
-async function pathExists(path: string): Promise<boolean> {
-  try {
-    await access(path);
-    return true;
-  } catch {
-    return false;
+function requiredEnv(env: NodeJS.ProcessEnv, name: string): string {
+  const value = env[name]?.trim();
+  if (!value) {
+    throw new Error(`Missing required environment variable ${name}.`);
   }
+  return value;
 }
 
-async function readJsonFile<T>(path: string): Promise<Partial<T> | undefined> {
-  if (!(await pathExists(path))) {
+function optionalEnv(env: NodeJS.ProcessEnv, name: string): string | undefined {
+  const value = env[name]?.trim();
+  return value ? value : undefined;
+}
+
+function parseProviderType(value: string): ProviderType {
+  if ((providerTypes as readonly string[]).includes(value)) {
+    return value as ProviderType;
+  }
+  throw new Error("VISUAL_MCP_PROVIDER_TYPE must be one of openai-chat, openai-responses, or anthropic.");
+}
+
+function parseDetail(value: string | undefined): DetailLevel {
+  if (!value) {
+    return "auto";
+  }
+  if ((detailLevels as readonly string[]).includes(value)) {
+    return value as DetailLevel;
+  }
+  throw new Error("VISUAL_MCP_DETAIL must be one of low, high, or auto.");
+}
+
+function parsePositiveInteger(value: string | undefined, name: string): number | undefined {
+  if (!value) {
     return undefined;
   }
-  const raw = await readFile(path, "utf8");
-  return JSON.parse(raw) as Partial<T>;
-}
-
-export function mergeConfig(globalConfig?: Partial<VisualMcpConfig>, projectConfig?: Partial<VisualMcpConfig>): VisualMcpConfig {
-  const mergedProviders: Record<string, ProviderConfig> = {};
-
-  for (const [name, provider] of Object.entries(globalConfig?.providers ?? {})) {
-    mergedProviders[name] = { ...provider };
+  const parsed = Number(value);
+  if (!Number.isInteger(parsed) || parsed <= 0) {
+    throw new Error(`${name} must be a positive integer.`);
   }
-  for (const [name, provider] of Object.entries(projectConfig?.providers ?? {})) {
-    mergedProviders[name] = { ...(mergedProviders[name] ?? {}), ...provider };
-  }
-
-  return {
-    ...defaultConfig,
-    ...globalConfig,
-    ...projectConfig,
-    providers: mergedProviders
-  };
+  return parsed;
 }
 
 export async function loadConfig(options: LoadConfigOptions = {}): Promise<VisualMcpConfig> {
-  const cwd = options.cwd ?? process.cwd();
-  const homeDir = options.homeDir ?? homedir();
-  const globalPath = join(homeDir, GLOBAL_CONFIG_RELATIVE_PATH);
-  const projectPath = join(cwd, PROJECT_CONFIG_FILE);
+  const env = options.env ?? process.env;
+  const provider: ProviderConfig = {
+    type: parseProviderType(requiredEnv(env, "VISUAL_MCP_PROVIDER_TYPE")),
+    model: requiredEnv(env, "VISUAL_MCP_MODEL"),
+    apiKey: requiredEnv(env, "VISUAL_MCP_API_KEY")
+  };
+  const baseUrl = optionalEnv(env, "VISUAL_MCP_BASE_URL");
+  const maxTokens = parsePositiveInteger(optionalEnv(env, "VISUAL_MCP_MAX_TOKENS"), "VISUAL_MCP_MAX_TOKENS");
 
-  const globalConfig = await readJsonFile<VisualMcpConfig>(globalPath);
-  const projectConfig = await readJsonFile<VisualMcpConfig>(projectPath);
-  const config = mergeConfig(globalConfig, projectConfig);
-
-  if (Object.keys(config.providers).length === 0) {
-    throw new Error(`No visual MCP providers configured. Create ${projectPath} or ${globalPath}.`);
+  if (baseUrl) {
+    provider.baseUrl = baseUrl;
   }
-  if (!config.providers[config.defaultProvider]) {
-    throw new Error(`Default provider "${config.defaultProvider}" is not configured.`);
+  if (maxTokens) {
+    provider.maxTokens = maxTokens;
   }
 
-  return config;
+  return {
+    providerName: optionalEnv(env, "VISUAL_MCP_PROVIDER_NAME") ?? "default",
+    defaultDetail: parseDetail(optionalEnv(env, "VISUAL_MCP_DETAIL")),
+    defaultLanguage: optionalEnv(env, "VISUAL_MCP_LANGUAGE") ?? "auto",
+    maxImageBytes: parsePositiveInteger(optionalEnv(env, "VISUAL_MCP_MAX_IMAGE_BYTES"), "VISUAL_MCP_MAX_IMAGE_BYTES"),
+    provider
+  };
 }
 
-export function resolveApiKey(provider: Pick<ProviderConfig, "apiKey" | "apiKeyEnv" | "type">, env: NodeJS.ProcessEnv = process.env): string {
-  if (provider.apiKeyEnv) {
-    const value = env[provider.apiKeyEnv];
-    if (value) {
-      return value;
-    }
-  }
+export function resolveApiKey(provider: Pick<ProviderConfig, "apiKey" | "type">): string {
   if (provider.apiKey) {
     return provider.apiKey;
   }
-  throw new Error(`Missing API key for ${provider.type}. Set apiKeyEnv or apiKey in configuration.`);
+  throw new Error(`Missing API key for ${provider.type}. Set VISUAL_MCP_API_KEY.`);
 }

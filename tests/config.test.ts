@@ -1,69 +1,86 @@
-import { mkdtemp, mkdir, writeFile } from "node:fs/promises";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
 import { describe, expect, test } from "vitest";
 import { loadConfig, resolveApiKey } from "../src/config.js";
 
 describe("configuration loading", () => {
-  test("merges global and project configuration with project overrides", async () => {
-    const root = await mkdtemp(join(tmpdir(), "visual-mcp-config-"));
-    const home = join(root, "home");
-    const project = join(root, "project");
-    await mkdir(join(home, ".visual-mcp"), { recursive: true });
-    await mkdir(project, { recursive: true });
-
-    await writeFile(
-      join(home, ".visual-mcp", "config.json"),
-      JSON.stringify({
-        defaultProvider: "openai",
-        defaultDetail: "low",
-        providers: {
-          openai: {
-            type: "openai-chat",
-            model: "gpt-4.1-mini",
-            apiKeyEnv: "OPENAI_API_KEY",
-            baseUrl: "https://api.openai.com/v1"
-          }
-        }
-      })
-    );
-
-    await writeFile(
-      join(project, "visual-mcp.config.json"),
-      JSON.stringify({
-        defaultDetail: "high",
-        providers: {
-          openai: {
-            model: "gpt-4.1",
-            baseUrl: "https://gateway.example/v1"
-          },
-          anthropic: {
-            type: "anthropic",
-            model: "claude-sonnet-4-20250514",
-            apiKey: "plain-secret"
-          }
-        }
-      })
-    );
-
-    const config = await loadConfig({ cwd: project, homeDir: home });
-
-    expect(config.defaultProvider).toBe("openai");
-    expect(config.defaultDetail).toBe("high");
-    expect(config.providers.openai).toMatchObject({
-      type: "openai-chat",
-      model: "gpt-4.1",
-      apiKeyEnv: "OPENAI_API_KEY",
-      baseUrl: "https://gateway.example/v1"
+  test("loads single provider configuration from environment variables", async () => {
+    const config = await loadConfig({
+      env: {
+        VISUAL_MCP_PROVIDER_NAME: "openai",
+        VISUAL_MCP_PROVIDER_TYPE: "openai-chat",
+        VISUAL_MCP_MODEL: "gpt-4.1-mini",
+        VISUAL_MCP_API_KEY: "secret",
+        VISUAL_MCP_BASE_URL: "https://gateway.example/v1",
+        VISUAL_MCP_MAX_TOKENS: "800",
+        VISUAL_MCP_DETAIL: "high",
+        VISUAL_MCP_LANGUAGE: "zh-CN",
+        VISUAL_MCP_MAX_IMAGE_BYTES: "1048576"
+      }
     });
-    expect(config.providers.anthropic).toMatchObject({
-      type: "anthropic",
-      apiKey: "plain-secret"
+
+    expect(config.providerName).toBe("openai");
+    expect(config.defaultDetail).toBe("high");
+    expect(config.defaultLanguage).toBe("zh-CN");
+    expect(config.maxImageBytes).toBe(1048576);
+    expect(config.provider).toMatchObject({
+      type: "openai-chat",
+      model: "gpt-4.1-mini",
+      apiKey: "secret",
+      baseUrl: "https://gateway.example/v1",
+      maxTokens: 800
     });
   });
 
-  test("resolves provider API keys from env or plaintext configuration", () => {
-    expect(resolveApiKey({ type: "openai-chat", apiKeyEnv: "VISION_KEY" }, { VISION_KEY: "from-env" })).toBe("from-env");
-    expect(resolveApiKey({ type: "anthropic", apiKey: "from-config" }, {})).toBe("from-config");
+  test("uses defaults for optional environment variables", async () => {
+    const config = await loadConfig({
+      env: {
+        VISUAL_MCP_PROVIDER_TYPE: "anthropic",
+        VISUAL_MCP_MODEL: "claude-sonnet-4-20250514",
+        VISUAL_MCP_API_KEY: "secret"
+      }
+    });
+
+    expect(config.providerName).toBe("default");
+    expect(config.defaultDetail).toBe("auto");
+    expect(config.defaultLanguage).toBe("auto");
+    expect(config.provider).toMatchObject({
+      type: "anthropic",
+      model: "claude-sonnet-4-20250514",
+      apiKey: "secret"
+    });
+    expect(config.provider.baseUrl).toBeUndefined();
+    expect(config.provider.maxTokens).toBeUndefined();
+    expect(config.maxImageBytes).toBeUndefined();
+  });
+
+  test("rejects missing required provider environment variables", async () => {
+    await expect(loadConfig({ env: {} })).rejects.toThrow("Missing required environment variable VISUAL_MCP_PROVIDER_TYPE.");
+  });
+
+  test("rejects invalid enum and numeric environment variables", async () => {
+    await expect(
+      loadConfig({
+        env: {
+          VISUAL_MCP_PROVIDER_TYPE: "openai-chat",
+          VISUAL_MCP_MODEL: "gpt-4.1-mini",
+          VISUAL_MCP_API_KEY: "secret",
+          VISUAL_MCP_DETAIL: "medium"
+        }
+      })
+    ).rejects.toThrow("VISUAL_MCP_DETAIL must be one of low, high, or auto.");
+
+    await expect(
+      loadConfig({
+        env: {
+          VISUAL_MCP_PROVIDER_TYPE: "openai-chat",
+          VISUAL_MCP_MODEL: "gpt-4.1-mini",
+          VISUAL_MCP_API_KEY: "secret",
+          VISUAL_MCP_MAX_TOKENS: "0"
+        }
+      })
+    ).rejects.toThrow("VISUAL_MCP_MAX_TOKENS must be a positive integer.");
+  });
+
+  test("resolves provider API keys from direct provider configuration", () => {
+    expect(resolveApiKey({ type: "openai-chat", apiKey: "from-env-config" })).toBe("from-env-config");
   });
 });

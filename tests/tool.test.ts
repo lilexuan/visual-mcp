@@ -43,14 +43,12 @@ describe("analyze_image tool", () => {
       { path: imagePath, question: "What is in this image?" },
       {
         config: {
-          defaultProvider: "openai",
+          providerName: "openai",
           defaultDetail: "auto",
-          providers: {
-            openai: {
-              type: "openai-chat",
-              model: "gpt-4.1-mini",
-              apiKey: "secret"
-            }
+          provider: {
+            type: "openai-chat",
+            model: "gpt-4.1-mini",
+            apiKey: "secret"
           }
         },
         fetchImpl

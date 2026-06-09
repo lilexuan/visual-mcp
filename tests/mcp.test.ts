@@ -1,6 +1,6 @@
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { InMemoryTransport } from "@modelcontextprotocol/sdk/inMemory.js";
-import { mkdtemp, writeFile } from "node:fs/promises";
+import { mkdtemp } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import sharp from "sharp";
@@ -13,6 +13,7 @@ describe("MCP server integration", () => {
   afterEach(() => {
     process.chdir(originalCwd);
     vi.unstubAllGlobals();
+    vi.unstubAllEnvs();
   });
 
   test("lists and calls analyze_image over an MCP transport", async () => {
@@ -26,19 +27,10 @@ describe("MCP server integration", () => {
         background: "#123456"
       }
     }).png().toFile(imagePath);
-    await writeFile(
-      join(root, "visual-mcp.config.json"),
-      JSON.stringify({
-        defaultProvider: "openai",
-        providers: {
-          openai: {
-            type: "openai-chat",
-            model: "gpt-4.1-mini",
-            apiKey: "plain-secret"
-          }
-        }
-      })
-    );
+    vi.stubEnv("VISUAL_MCP_PROVIDER_NAME", "openai");
+    vi.stubEnv("VISUAL_MCP_PROVIDER_TYPE", "openai-chat");
+    vi.stubEnv("VISUAL_MCP_MODEL", "gpt-4.1-mini");
+    vi.stubEnv("VISUAL_MCP_API_KEY", "plain-secret");
 
     vi.stubGlobal(
       "fetch",
@@ -74,6 +66,7 @@ describe("MCP server integration", () => {
 
     const tools = await client.listTools();
     expect(tools.tools.map((tool) => tool.name)).toContain("analyze_image");
+    expect(tools.tools.find((tool) => tool.name === "analyze_image")?.inputSchema).not.toHaveProperty("properties.provider");
 
     const result = await client.callTool({
       name: "analyze_image",
