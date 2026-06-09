@@ -5,77 +5,35 @@
 [![TypeScript](https://img.shields.io/badge/TypeScript-6.x-blue.svg)](https://www.typescriptlang.org/)
 [![MCP](https://img.shields.io/badge/MCP-stdio-green.svg)](https://modelcontextprotocol.io/)
 
-English | [简体中文](README.zh-CN.md)
+English | [Simplified Chinese](README.zh-CN.md)
 
-`visual-mcp` is a local `stdio` MCP server that lets text-only models analyze explicitly provided local image paths through configurable vision providers.
+`visual-mcp` is a local `stdio` MCP server that lets text-only clients analyze explicitly provided local image paths through one configured vision model provider.
 
-V1 supports PNG, JPEG, WebP, and non-animated GIF images. It does not read Claude Code's private `image-cache`, and it does not automatically read clipboard images, PDFs, videos, webpages, or screenshots.
+It supports PNG, JPEG, WebP, and non-animated GIF images. It does not read private client caches, clipboard images, PDFs, videos, webpages, screenshots, or any other implicit visual source.
 
 ## Features
 
-- Local `stdio` MCP server for image analysis.
-- Configurable vision providers for OpenAI Chat Completions-compatible APIs, OpenAI Responses API, and Anthropic Messages API.
-- Per-request overrides for provider, model, detail level, and output language.
+- Local `stdio` MCP server for explicit local image analysis.
+- One provider configured entirely through environment variables.
+- Provider adapters for OpenAI Chat Completions-compatible APIs, OpenAI Responses API, and Anthropic Messages API.
+- Per-request overrides for model, detail level, and output language.
 - Structured tool output with readable text, observations, OCR text, warnings, and provider metadata.
-- API keys can be loaded from environment variables or local config files.
 
-## Local Development
+## Install
 
-```powershell
-npm install
-npm run build
-```
-
-The build output is generated in `dist/`. The CLI entry point is:
-
-```text
-dist/cli.js
-```
-
-During development, Claude Code can run the server directly from the repository:
-
-```json
-{
-  "mcpServers": {
-    "visual-mcp": {
-      "command": "node",
-      "args": ["C:\\workspace\\visual-mcp\\dist\\cli.js"]
-    }
-  }
-}
-```
-
-## Distribute With tgz
-
-If the package is not published to npm yet, you can create a `.tgz` package and share it directly.
-
-Before packing, run the validation commands:
+If the package is available from npm:
 
 ```powershell
-npm test
-npm run typecheck
-npm run build
+npm install -g visual-mcp
 ```
 
-Create the package:
+If you are installing from a local package file:
 
 ```powershell
-npm pack
+npm install -g .\visual-mcp-1.0.1.tgz
 ```
 
-The command creates a file similar to:
-
-```text
-visual-mcp-1.0.0.tgz
-```
-
-Users can install the package globally:
-
-```powershell
-npm install -g .\visual-mcp-1.0.0.tgz
-```
-
-After installation, Claude Code can use this configuration:
+Claude Code can then start the server with:
 
 ```json
 {
@@ -87,7 +45,7 @@ After installation, Claude Code can use this configuration:
 }
 ```
 
-opencode can configure the local MCP server under the `mcp` field in `opencode.jsonc`:
+opencode can configure the server under the `mcp` field:
 
 ```jsonc
 {
@@ -102,20 +60,20 @@ opencode can configure the local MCP server under the `mcp` field in `opencode.j
 }
 ```
 
-You can also skip global installation and let Claude Code use the local `.tgz` package through `npx`:
+You can also run a local `.tgz` package through `npx` without global installation:
 
 ```json
 {
   "mcpServers": {
     "visual-mcp": {
       "command": "npx",
-      "args": ["-y", "C:\\path\\to\\visual-mcp-1.0.0.tgz"]
+      "args": ["-y", "C:\\path\\to\\visual-mcp-1.0.1.tgz"]
     }
   }
 }
 ```
 
-opencode can use the local `.tgz` package through `npx` as well:
+For opencode:
 
 ```jsonc
 {
@@ -123,14 +81,54 @@ opencode can use the local `.tgz` package through `npx` as well:
   "mcp": {
     "visual-mcp": {
       "type": "local",
-      "command": ["npx", "-y", "C:\\path\\to\\visual-mcp-1.0.0.tgz"],
+      "command": ["npx", "-y", "C:\\path\\to\\visual-mcp-1.0.1.tgz"],
       "enabled": true
     }
   }
 }
 ```
 
-If you want to pass API keys as environment variables when opencode starts the MCP server, add them to `environment`:
+## Configuration
+
+`visual-mcp` is configured with environment variables. There is no provider config file and only one provider is active at a time.
+
+Required variables:
+
+| Variable | Description | Example |
+| --- | --- | --- |
+| `VISUAL_MCP_PROVIDER_TYPE` | Provider adapter type. | `openai-chat` |
+| `VISUAL_MCP_MODEL` | Vision model name. | `gpt-4.1-mini` |
+| `VISUAL_MCP_API_KEY` | API key for the configured provider. | `sk-...` |
+
+Optional variables:
+
+| Variable | Description | Default |
+| --- | --- | --- |
+| `VISUAL_MCP_PROVIDER_NAME` | Name shown in tool output metadata. | `default` |
+| `VISUAL_MCP_BASE_URL` | Custom API base URL. Useful for OpenAI-compatible gateways. | OpenAI or Anthropic default |
+| `VISUAL_MCP_MAX_TOKENS` | Maximum output tokens. | `1200` |
+| `VISUAL_MCP_DETAIL` | Vision detail level: `low`, `high`, or `auto`. | `auto` |
+| `VISUAL_MCP_LANGUAGE` | Output language policy. Use `auto` to follow the question language. | `auto` |
+| `VISUAL_MCP_MAX_IMAGE_BYTES` | Maximum accepted image size in bytes. | `20971520` |
+
+Temporary PowerShell setup:
+
+```powershell
+$env:VISUAL_MCP_PROVIDER_TYPE = "openai-chat"
+$env:VISUAL_MCP_MODEL = "gpt-4.1-mini"
+$env:VISUAL_MCP_API_KEY = "sk-..."
+$env:VISUAL_MCP_BASE_URL = "https://api.openai.com/v1"
+```
+
+Persist user environment variables on Windows:
+
+```powershell
+[Environment]::SetEnvironmentVariable("VISUAL_MCP_PROVIDER_TYPE", "openai-chat", "User")
+[Environment]::SetEnvironmentVariable("VISUAL_MCP_MODEL", "gpt-4.1-mini", "User")
+[Environment]::SetEnvironmentVariable("VISUAL_MCP_API_KEY", "sk-...", "User")
+```
+
+If you prefer to pass variables from an MCP client config, use the client's environment field. For opencode:
 
 ```jsonc
 {
@@ -141,126 +139,40 @@ If you want to pass API keys as environment variables when opencode starts the M
       "command": ["visual-mcp"],
       "enabled": true,
       "environment": {
-        "OPENAI_API_KEY": "sk-...",
-        "ANTHROPIC_API_KEY": "sk-ant-..."
+        "VISUAL_MCP_PROVIDER_TYPE": "openai-chat",
+        "VISUAL_MCP_MODEL": "gpt-4.1-mini",
+        "VISUAL_MCP_API_KEY": "sk-..."
       }
     }
   }
 }
 ```
 
-Prefer system environment variables or `~/.visual-mcp/config.json` for personal API settings, so secrets are not written into project config files.
-
-When you create a new package version, users need to reinstall the new `.tgz` file:
-
-```powershell
-npm uninstall -g visual-mcp
-npm install -g .\visual-mcp-1.0.1.tgz
-```
-
-## Configuration Files
-
-Configuration is merged from two locations:
-
-1. Global config: `~/.visual-mcp/config.json`
-2. Project config: `visual-mcp.config.json`
-
-Project config overrides global config. See `visual-mcp.config.example.json` for an example.
-
-Use global config for personal API settings:
-
-```powershell
-mkdir $HOME\.visual-mcp
-notepad $HOME\.visual-mcp\config.json
-```
-
-## API Keys
-
-API keys can be configured in two ways: environment variable references or plain-text config values.
-
-### Environment Variables
-
-Environment variables are recommended because they keep secrets out of config files.
-
-Temporary PowerShell values:
-
-```powershell
-$env:OPENAI_API_KEY="sk-..."
-$env:ANTHROPIC_API_KEY="sk-ant-..."
-```
-
-Persist user environment variables:
-
-```powershell
-[Environment]::SetEnvironmentVariable("OPENAI_API_KEY", "sk-...", "User")
-[Environment]::SetEnvironmentVariable("ANTHROPIC_API_KEY", "sk-ant-...", "User")
-```
-
-Example config:
-
-```json
-{
-  "defaultProvider": "openai",
-  "defaultDetail": "auto",
-  "defaultLanguage": "auto",
-  "providers": {
-    "openai": {
-      "type": "openai-chat",
-      "model": "gpt-4.1-mini",
-      "baseUrl": "https://api.openai.com/v1",
-      "apiKeyEnv": "OPENAI_API_KEY"
-    },
-    "anthropic": {
-      "type": "anthropic",
-      "model": "claude-sonnet-4-20250514",
-      "apiKeyEnv": "ANTHROPIC_API_KEY"
-    }
-  }
-}
-```
-
-### Plain-Text Config
-
-You can also write an API key directly in the config file:
-
-```json
-{
-  "defaultProvider": "openai",
-  "providers": {
-    "openai": {
-      "type": "openai-chat",
-      "model": "gpt-4.1-mini",
-      "baseUrl": "https://api.openai.com/v1",
-      "apiKey": "sk-..."
-    }
-  }
-}
-```
-
-Plain-text config is convenient but less secure. Keep it only on your own machine, and do not commit it to Git or include it in shared packages.
+Do not commit real API keys. For shared setup notes, use placeholders or an `.env.example` file.
 
 ## Provider Types
 
-`visual-mcp` supports three provider adapters:
+`VISUAL_MCP_PROVIDER_TYPE` supports:
 
-- `openai-chat`: OpenAI Chat Completions-compatible APIs
-- `openai-responses`: OpenAI Responses API
-- `anthropic`: Anthropic Messages API
+- `openai-chat`: OpenAI Chat Completions-compatible APIs.
+- `openai-responses`: OpenAI Responses API.
+- `anthropic`: Anthropic Messages API.
 
-OpenAI-compatible gateways can set `baseUrl`:
+For an OpenAI-compatible gateway, set a custom base URL:
 
-```json
-{
-  "defaultProvider": "openai",
-  "providers": {
-    "openai": {
-      "type": "openai-chat",
-      "model": "your-vision-model",
-      "baseUrl": "https://your-gateway.example/v1",
-      "apiKeyEnv": "OPENAI_API_KEY"
-    }
-  }
-}
+```powershell
+$env:VISUAL_MCP_PROVIDER_TYPE = "openai-chat"
+$env:VISUAL_MCP_MODEL = "your-vision-model"
+$env:VISUAL_MCP_API_KEY = "your-api-key"
+$env:VISUAL_MCP_BASE_URL = "https://your-gateway.example/v1"
+```
+
+For Anthropic:
+
+```powershell
+$env:VISUAL_MCP_PROVIDER_TYPE = "anthropic"
+$env:VISUAL_MCP_MODEL = "claude-sonnet-4-20250514"
+$env:VISUAL_MCP_API_KEY = "sk-ant-..."
 ```
 
 ## Tool
@@ -271,10 +183,9 @@ Input parameters:
 
 - `path`: required local image path.
 - `question`: required question or visual task for the vision model.
-- `provider`: optional provider override.
-- `model`: optional model override.
+- `model`: optional model override for this call.
 - `detail`: optional detail level, one of `low`, `high`, or `auto`.
-- `language`: optional output language. Defaults to the language of the question.
+- `language`: optional output language. Defaults to following the question language.
 
 The tool returns readable text and `structuredContent`:
 
@@ -285,14 +196,14 @@ The tool returns readable text and `structuredContent`:
   "observations": ["..."],
   "ocr_text": "",
   "uncertainties": [],
-  "provider": "openai",
+  "provider": "default",
   "model": "gpt-4.1-mini",
   "usage": {},
   "warnings": []
 }
 ```
 
-Example Claude Code prompt:
+Example prompt:
 
 ```text
 Use visual-mcp to analyze this image: C:\path\to\image.png. What UI issues are visible?
@@ -300,11 +211,52 @@ Use visual-mcp to analyze this image: C:\path\to\image.png. What UI issues are v
 
 All provider adapters send image content as inline base64/data URLs. The server does not log API keys, image bytes, or base64 payloads.
 
-## Development Commands
+## Local Development
+
+```powershell
+npm install
+npm test
+npm run typecheck
+npm run build
+```
+
+The build output is generated in `dist/`. To run the server directly from a cloned repository:
+
+```powershell
+npm run dev
+```
+
+When testing a local build from an MCP client, point the client to the built CLI:
+
+```json
+{
+  "mcpServers": {
+    "visual-mcp": {
+      "command": "node",
+      "args": ["C:\\path\\to\\visual-mcp\\dist\\cli.js"]
+    }
+  }
+}
+```
+
+## Package Locally
+
+Run the validation commands first:
 
 ```powershell
 npm test
 npm run typecheck
 npm run build
+```
+
+Create a local package:
+
+```powershell
+npm pack
+```
+
+For packaging changes, also check the package contents without creating a committed artifact:
+
+```powershell
 npm pack --dry-run
 ```

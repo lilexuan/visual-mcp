@@ -3,19 +3,18 @@ export type DetailLevel = "low" | "high" | "auto";
 
 export interface ProviderConfig {
   type: ProviderType;
-  model?: string;
-  apiKey?: string;
-  apiKeyEnv?: string;
+  model: string;
+  apiKey: string;
   baseUrl?: string;
   maxTokens?: number;
 }
 
 export interface VisualMcpConfig {
-  defaultProvider: string;
+  providerName: string;
+  provider: ProviderConfig;
   defaultDetail?: DetailLevel;
   defaultLanguage?: string;
   maxImageBytes?: number;
-  providers: Record<string, ProviderConfig>;
 }
 
 export interface VisionAnalysis extends Record<string, unknown> {

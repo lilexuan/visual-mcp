@@ -20,7 +20,6 @@ export function createVisualMcpServer(): McpServer {
       inputSchema: {
         path: z.string().min(1).describe("Local image path to analyze."),
         question: z.string().min(1).describe("Question or task for the vision model."),
-        provider: z.string().optional().describe("Optional configured provider name override."),
         model: z.string().optional().describe("Optional model override for this call."),
         detail: detailSchema.optional().describe("Vision detail level: low, high, or auto."),
         language: z.string().optional().describe("Output language. Defaults to auto, following the question language.")
