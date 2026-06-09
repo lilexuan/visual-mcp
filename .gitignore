@@ -8,4 +8,3 @@ opencode.json
 visual-mcp.config.json
 .env
 .env.*
-!.env.example

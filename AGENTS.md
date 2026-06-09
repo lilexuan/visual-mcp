@@ -18,7 +18,6 @@ The server intentionally analyzes only explicitly provided local image paths. Do
 - `src/image.ts`: local image validation and encoding.
 - `src/types.ts`: shared TypeScript types.
 - `tests/`: Vitest coverage for config, image handling, MCP behavior, providers, and tool behavior.
-- `.env.example`: example environment variable provider config.
 
 ## Development Commands
 

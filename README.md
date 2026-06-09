@@ -148,7 +148,7 @@ If you prefer to pass variables from an MCP client config, use the client's envi
 }
 ```
 
-Do not commit real API keys. For shared setup notes, use placeholders or an `.env.example` file.
+Do not commit real API keys. Keep shared setup notes in this README with placeholder values only.
 
 ## Provider Types
 
