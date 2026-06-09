@@ -11,8 +11,7 @@
     "dist",
     "README.md",
     "README.zh-CN.md",
-    "LICENSE",
-    ".env.example"
+    "LICENSE"
   ],
   "scripts": {
     "build": "tsc -p tsconfig.build.json",

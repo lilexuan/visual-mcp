@@ -143,7 +143,7 @@ $env:VISUAL_MCP_BASE_URL = "https://api.openai.com/v1"
 }
 ```
 
-不要提交真实 API key。共享配置说明时，请使用占位符或 `.env.example`。
+不要提交真实 API key。共享配置说明保留在 README 中，并且只使用占位符。
 
 ## Provider 类型
 
